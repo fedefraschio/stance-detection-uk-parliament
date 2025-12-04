@@ -66,6 +66,10 @@ class StanceDetector:
 
         # Join everything into one formatted discussion
         return "\n".join(formatted_lines)
+    
+    def generate_opinions(self, topic):
+        #TODO: generate opinion against and in favour of the topic trough LLMs
+        pass
 
 
 def format_discussion(df: pd.DataFrame, agenda: str, date: str) -> str:
