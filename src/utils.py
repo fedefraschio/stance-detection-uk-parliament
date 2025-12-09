@@ -1,4 +1,3 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 import pandas as pd
 
@@ -107,27 +106,3 @@ def format_discussion(df: pd.DataFrame, agenda: str, date: str) -> str:
 
 
 
-## Utility function to work with models ##
-
-def load_model(model_checkpoint):
-    """
-    Load the model and tokenizer.
-    """
-
-    # Load the tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
-
-    # Load the model
-    model = AutoModelForCausalLM.from_pretrained(
-        model_checkpoint,
-        device_map="auto", # <--- Set "cpu", "cuda" or "mps" to explicitly set the device of interest
-        dtype=torch.bfloat16 # <--- What's this format? Weren't there just float16 and float32?
-        # T4 GPU does not support bfloat :(, it might either give an error or automatically cast to float
-    )
-
-    # pad token setting for decoder-only models
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.pad_token_id = tokenizer.eos_token_id
-    model.config.pad_token_id = tokenizer.pad_token_id
-
-    return model, tokenizer
