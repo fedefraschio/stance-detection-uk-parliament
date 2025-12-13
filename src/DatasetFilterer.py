@@ -10,6 +10,8 @@ class DatasetFilterer:
     filtered_dataset_df = None
     classified_df = None
 
+
+    # TODO: migliorare gestione errori caricamento dati e modelli
     def __init__( self, speech, records, cl_model_hf="andreacristiano/stancedetection"):
         self.speeches_df = speech
 
@@ -19,6 +21,9 @@ class DatasetFilterer:
         self.record = records
 
         self.model= SetFitModel.from_pretrained(cl_model_hf)
+
+        if self.model is None:
+            raise ValueError("Classification model could not be loaded.")
 
 
     #AUXILIARY FUNCTIONS
