@@ -1,6 +1,8 @@
 import json
 import os 
 
+# To run at setup, to generate records.json
+
 records = {
     "nuclear":{
         'keywords':[

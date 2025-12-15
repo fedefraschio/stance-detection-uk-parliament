@@ -47,22 +47,22 @@ class DatasetFilterer:
     def filter_speeches(self, topic):
         keywords, policyarea = self.__get_keywords_policyarea(topic)
 
-        # 1. Filtra prima per policyarea (molto più veloce dei filtri testuali)
+        # Filtering per policy area (faster than keyword search) - shrinks dataframe
         df = self.speeches_df[self.speeches_df['policyarea'].isin(policyarea)]
 
-        # 2. Precompila regex per velocizzare il .str.contains
-        #    escape delle parole con caratteri speciali
+        # Creating regex pattern for keyword search
         pattern = re.compile("|".join(re.escape(k) for k in keywords), re.IGNORECASE)
 
-        # 3. Filtra il testo sul dataframe già ristretto
+        # Filtering the text on the already shrunk dataframe
         df = df[df["text"].str.contains(pattern, na=False)]
 
-        # salva
+        # save
         self.record[topic]['df_filtered'] = df
 
         return df
 
     def classify_sentences(self, topic):
+        # TODO: optimize method
         #TODO: an easier method to access single topic data inside the class can be made
         """"
         IN: filtered dataframe about a topic
@@ -72,10 +72,11 @@ class DatasetFilterer:
 
         # Get the texts to classify from self.filtered_df
         texts = self.record[topic]['df_filtered']['text'].tolist()
+
         # Perform classification
         predictions = self.model.predict(texts)
+        
         # Add predictions as a new column in self.filtered_df
         self.record[topic]['df_filtered']['classification'] = predictions
         self.record[topic]['df_classified'] = self.record[topic]['df_filtered'][self.record[topic]['df_filtered']['classification'] == 'opinion']
-        
         return self.record[topic]['df_classified']
