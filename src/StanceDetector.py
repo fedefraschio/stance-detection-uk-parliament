@@ -7,6 +7,7 @@ import umap
 import matplotlib.pyplot as plt
 import random
 import ollama
+import re
 
 
 
@@ -382,40 +383,47 @@ class StanceDetector:
 
         # Prompt LLM to identify issues and opposing views
         prompt = f"""
-            Below is a text summarizing the stance on {topic} of several legislators extracted from the parliamentary proceedings.
-            Please use this text as a basis for identifying issues related to this topic, and describe the polar opposing views on these issues.
+                Below are summaries of legislators' stances on nuclear energy.
 
-            Response Format (Please be sure to respond in this format)
-            Issue: Outline of the issue
-            For: Opinion in favor of the issue
-            Against: Opinion against the issue
+                Identify distinct issues within this topic.
+                For each issue, define opposing anchor positions.
 
-            Text:
-            {text}
-            """
+                Respond EXACTLY in this format:
+
+                Issue: <short issue name>
+                Pro: <clear pro position>
+                Con: <clear con position>
+
+                Repeat for each issue.
+
+                Text:
+                {text}
+                """
 
         # Request structured JSON output from Ollama
         response = ollama.chat(
             model=model_name,
             messages=[{"role": "user", "content": prompt}],
-            format={
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "topic": {"type": "string"},
-                        "pro": {"type": "string"},
-                        "con": {"type": "string"}
-                    },
-                    "required": ["topic", "pro", "con"]
-                }
-            },
-            options={"temperature": 0, 'seed': self.random_seed}
+            # removed 'format' as it can slow down response and is not always necessary if the prompt is clear enough
+            # temperature set to 0 might slow down decoding
+            options={"temperature": 0.2, 'seed': self.random_seed}
         )
 
         content = response["message"]["content"]
 
-        return json.loads(content)
+        # create a regex pattern to extract the issues and their pro/con positions
+        pattern = r"Issue:\s*(.*?)\nPro:\s*(.*?)\nCon:\s*(.*?)(?=\nIssue:|\Z)"
+        matches = re.findall(pattern, content, re.DOTALL)
+
+        anchors = [
+            {"topic": m[0].strip(), "pro": m[1].strip(), "con": m[2].strip()}
+            for m in matches
+            ]
+
+        return anchors
+
+        # return json.loads(content)
+        #return content # DEBUG
     
     def compute_umap_embeddings(self,
                            topic,
