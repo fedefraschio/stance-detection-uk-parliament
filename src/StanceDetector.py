@@ -57,7 +57,7 @@ class StanceDetector:
         """
 
         self.__speeches_df = speech
-        self.__record= records    
+        self.__record= records
         self.model= SetFitModel.from_pretrained(cl_model_hf)
         self.random_seed = random_seed
 
@@ -73,6 +73,13 @@ class StanceDetector:
     
     def get_classified_speeches(self, topic):
         return self.__record[topic]['df_classified']
+    
+
+    # ==================== SETTER METHODS ====================
+
+    # It will be used to set the summarization results, mainly for testing purposes, but it can also be useful if we want to modify the summarization results before using them for anchor generation or visualization.
+    def set_summarization_for_topic(self, topic, df_summarized_speaker):
+        self.__record[topic]['df_summarized_speaker'] = df_summarized_speaker
 
     # ====================  METHODS ====================
 
@@ -357,7 +364,10 @@ class StanceDetector:
         self.__record[topic]['df_summarized_speaker'] = self.__record[topic]['df_summarized_speaker'][~self.__record[topic]['df_summarized_speaker']['summary'].str.startswith('Please provide')]
         print("Summarization completed for topic:", topic)
         return self.__record[topic]['df_summarized_speaker']
+    
 
+    
+    
     def generate_anchors(self, topic, model_name='gemma3'):
 
         """
@@ -381,45 +391,59 @@ class StanceDetector:
         # Concatenate all summaries into one text
         text = "\n".join(summarizations['summary'].dropna().astype(str))
 
-        # Prompt LLM to identify issues and opposing views
+        system_message = (
+        "You are a precise text formatter. "
+        "You MUST follow the response format EXACTLY as specified. "
+        "RULES YOU MUST NEVER BREAK:\n"
+        "- NEVER use markdown, asterisks, bold, italics, or bullet points.\n"
+        "- NEVER write any introduction, preamble, conclusion, or commentary.\n"
+        "- NEVER add blank lines between Issue, For, and Against.\n"
+        "- NEVER ask follow-up questions.\n"
+        "- NEVER deviate from the format, even slightly.\n"
+        "- Your response MUST start IMMEDIATELY with 'Issue:' — nothing before it.\n"
+        "- Your response MUST contain ONLY 'Issue:', 'For:', and 'Against:' lines.\n"
+        "Any response that does not follow these rules exactly is WRONG."
+        )
+
         prompt = f"""
-                Below are summaries of legislators' stances on nuclear energy.
+            Below is a text summarizing the stance on {topic} of several legislators extracted from the parliamentary proceedings.
+            Please use this text as a basis for identifying issues related to this topic, and describe the polar opposing views on these issues.
 
-                Identify distinct issues within this topic.
-                For each issue, define opposing anchor positions.
+            Response Format (Please be sure to EXACTLY in this format, with no extra text before or after):
+            Issue: <Outline of the issue>
+            For: <Opinion in favor of the issue>
+            Against: <Opinion against the issue>
 
-                Respond EXACTLY in this format:
-
-                Issue: <short issue name>
-                Pro: <clear pro position>
-                Con: <clear con position>
-
-                Repeat for each issue.
-
-                Text:
-                {text}
-                """
+            Text:
+            {text}
+            """
 
         # Request structured JSON output from Ollama
         response = ollama.chat(
             model=model_name,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[{"role": "user", "content": prompt},
+                      {"role": "system", "content": system_message}],
             # removed 'format' as it can slow down response and is not always necessary if the prompt is clear enough
             # temperature set to 0 might slow down decoding
-            options={"temperature": 0.2, 'seed': self.random_seed}
+            options={"temperature": 0, 'seed': self.random_seed}
         )
 
         content = response["message"]["content"]
 
         # create a regex pattern to extract the issues and their pro/con positions
-        pattern = r"Issue:\s*(.*?)\nPro:\s*(.*?)\nCon:\s*(.*?)(?=\nIssue:|\Z)"
+        pattern = r"Issue:\s*(.*?)\nFor:\s*(.*?)\nAgainst:\s*(.*?)(?=\nIssue:|\Z)"
         matches = re.findall(pattern, content, re.DOTALL)
+
+        if not matches:
+            print("Warning: no anchors extracted. Raw response:\n", content)
+            return []
+
 
         anchors = [
             {"topic": m[0].strip(), "pro": m[1].strip(), "con": m[2].strip()}
             for m in matches
             ]
-
+        
         return anchors
 
         # return json.loads(content)
