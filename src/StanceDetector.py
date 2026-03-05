@@ -406,15 +406,26 @@ class StanceDetector:
         )
 
         prompt = f"""
-            Below is a text summarizing the stance on {topic} of several legislators extracted from the parliamentary proceedings.
-            Please use this text as a basis for identifying issues related to this topic, and describe the polar opposing views on these issues.
+            You are a political analyst. Below is a list of summaries of opinions expressed by politicians on {topic}. Each summary reflects the position of one politician.
+            Your task is to:
 
-            Response Format (Please be sure to EXACTLY in this format, with no extra text before or after):
-            Issue: <Outline of the issue>
-            For: <Opinion in favor of the issue>
-            Against: <Opinion against the issue>
+            Read all the summaries carefully.
+            Identify the main sub-topics or contested issues that emerge across the opinions.
+            For each sub-topic, formulate a clear, neutral issue statement and extract one representative "For" position and one representative "Against" position, grounding them in the actual opinions provided.
 
-            Text:
+            Output only the issues in the following format, with no additional commentary, numbering, or explanation:
+            Issue: <Neutral statement of the contested issue>
+            For: <A position in favour of the issue, grounded in the politicians' opinions>
+            Against: <A position against the issue, grounded in the politicians' opinions>
+            Rules:
+
+            Each "Issue" must be a concrete, debatable policy or normative question (not a vague theme).
+            "For" and "Against" must reflect genuinely opposing views found in the summaries — do not invent positions.
+            Write each position as a single, self-contained sentence of 20–40 words.
+            Produce between 4 and 8 issues, covering the most salient points of disagreement.
+            Do not mention any politician's name.
+
+            Here are the opinion summaries:
             {text}
             """
 
