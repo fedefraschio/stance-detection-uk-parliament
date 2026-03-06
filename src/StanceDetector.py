@@ -391,43 +391,59 @@ class StanceDetector:
         # Concatenate all summaries into one text
         text = "\n".join(summarizations['summary'].dropna().astype(str))
 
-        system_message = (
-        "You are a precise text formatter. "
-        "You MUST follow the response format EXACTLY as specified. "
-        "RULES YOU MUST NEVER BREAK:\n"
-        "- NEVER use markdown, asterisks, bold, italics, or bullet points.\n"
-        "- NEVER write any introduction, preamble, conclusion, or commentary.\n"
-        "- NEVER add blank lines between Issue, For, and Against.\n"
-        "- NEVER ask follow-up questions.\n"
-        "- NEVER deviate from the format, even slightly.\n"
-        "- Your response MUST start IMMEDIATELY with 'Issue:' — nothing before it.\n"
-        "- Your response MUST contain ONLY 'Issue:', 'For:', and 'Against:' lines.\n"
-        "Any response that does not follow these rules exactly is WRONG."
-        )
+        system_message = """
+        You are an expert in political discourse analysis and debate extraction.
+
+        Your task is to identify contested policy issues from collections of political statements and reconstruct structured debate pairs.
+
+        Always follow the requested output format exactly.
+        Only use information grounded in the provided text.
+        Do not invent arguments or add commentary.
+        Be concise, neutral, and analytical.
+        """
 
         prompt = f"""
-            You are a political analyst. Below is a list of summaries of opinions expressed by politicians on {topic}. Each summary reflects the position of one politician.
-            Your task is to:
+        You are given a dataset of summaries of political statements about the topic: "{topic}".
 
-            Read all the summaries carefully.
-            Identify the main sub-topics or contested issues that emerge across the opinions.
-            For each sub-topic, formulate a clear, neutral issue statement and extract one representative "For" position and one representative "Against" position, grounding them in the actual opinions provided.
+        Each summary represents the opinion of one politician.
 
-            Output only the issues in the following format, with no additional commentary, numbering, or explanation:
-            Issue: <Neutral statement of the contested issue>
-            For: <A position in favour of the issue, grounded in the politicians' opinions>
-            Against: <A position against the issue, grounded in the politicians' opinions>
-            Rules:
+        Your task is to reconstruct the main contested policy issues discussed in the dataset and express them as structured debate pairs.
 
-            Each "Issue" must be a concrete, debatable policy or normative question (not a vague theme).
-            "For" and "Against" must reflect genuinely opposing views found in the summaries — do not invent positions.
-            Write each position as a single, self-contained sentence of 20–40 words.
-            Produce between 4 and 8 issues, covering the most salient points of disagreement.
-            Do not mention any politician's name.
+        Method:
+        1. Read all summaries.
+        2. Identify recurring policy questions or normative disputes.
+        3. Group similar viewpoints.
+        4. Detect two opposing positions on each issue.
+        5. Formulate a neutral issue statement and one "For" and one "Against" argument.
 
-            Here are the opinion summaries:
-            {text}
-            """
+        Constraints:
+        - Use ONLY positions supported by the summaries.
+        - Do NOT invent arguments.
+        - Issues must be clear political questions.
+        - "For" and "Against" must represent genuinely opposing positions.
+
+        Writing rules:
+        - Issue: 10–18 words
+        - For / Against: 20–35 words
+        - Neutral analytical tone.
+        - Do not mention politicians or parties.
+        - Avoid duplicate issues.
+
+        Output format (strict):
+
+        Issue: <Neutral statement of the contested issue>
+        For: <Argument supporting the issue>
+        Against: <Argument opposing the issue>
+
+        Issue: <Neutral statement of the contested issue>
+        For: <Argument supporting the issue>
+        Against: <Argument opposing the issue>
+
+        Generate between 5 and 8 issues.
+
+        Dataset:
+        {text}
+        """
 
         # Request structured JSON output from Ollama
         response = ollama.chat(
@@ -459,6 +475,52 @@ class StanceDetector:
 
         # return json.loads(content)
         #return content # DEBUG
+
+    def compute_embeddings(self, topic, anchors, model_name="Qwen/Qwen3-Embedding-0.6B"):
+        """
+        Compute embeddings for speaker summaries and stance anchors.
+        
+        This is STEP 5a of the analysis workflow.
+        - Converts speaker summaries to numerical embeddings
+        - Includes stance anchors (pro/con) in the embedding space
+        
+        Args:
+            topic: The topic to compute embeddings for
+            anchors: Dictionary with 'pro' and 'con' stance descriptions
+            model_name: SentenceTransformer model for embeddings
+        Returns:
+            Tuple of (speaker_embeddings, anchor_embeddings)
+        """
+        print("Computing embeddings for topic:", topic)
+        
+        # Get speaker summaries
+        sum_df = self.__record[topic]['df_summarized_speaker'].copy()
+        summaries = sum_df["summary"].tolist()
+
+        # Extract anchor texts (pro and con positions)
+        anchor_texts = [anchors['pro'], anchors['con']]
+        
+        all_texts = summaries + anchor_texts
+
+        # DEBUG
+        print(all_texts)
+
+        # Load embedding model
+        model = SentenceTransformer(model_name)
+        
+        # Embed both speaker summaries AND anchors together
+        # (This ensures they're in the same embedding space)
+        embeddings = model.encode(all_texts, show_progress_bar=True)
+
+        # Split back into speeches and anchors
+        speaker_embeddings = embeddings[:len(summaries)]
+        anchor_embeddings = embeddings[len(summaries):]
+
+        return speaker_embeddings, anchor_embeddings
+    
+    
+    # TODO: for each subtopic, creare axis of controversy and projecting party averages onto it 
+
     
     def compute_umap_embeddings(self,
                            topic,
@@ -519,6 +581,7 @@ class StanceDetector:
             metric=metric,
             random_state=self.random_seed
         )
+
         reduced_embeddings = reducer.fit_transform(embeddings)
         
         # Split back into speeches and anchors
@@ -535,6 +598,7 @@ class StanceDetector:
             'reduced_anchors': reduced_anchors,
             'anchors': anchors
         }
+
 
     def plot_umap_party_averages(self,
                              umap_data,                            
