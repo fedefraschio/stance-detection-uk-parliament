@@ -1,10 +1,12 @@
-from setfit import SetFitModel 
+from setfit import SetFitModel
 import requests
+import numpy as np
 import json
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 import umap
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as pe
 import random
 import ollama
 import re
@@ -155,65 +157,7 @@ class StanceDetector:
         )
 
         return df
-
-    def classify_filtered_sentences(self, topic):
-        """
-        Classify sentences as opinionated or non-opinionated.
-        
-        This is STEP 2 of the analysis workflow.
-        - Uses few shot model to classify each sentence
-        - Keeps only opinionated sentences
-        - Removes speakers with only one sentence (insufficient data) to reduce noise
-        
-        Args:
-            topic: The topic to classify
-            
-        Returns:
-            DataFrame containing only opinionated sentences
-        """
-        print("Classifying filtered speeches for topic:", topic)
-
-        #Extract the filtered dataframe
-        df_filtered = self.__record[topic]['df_filtered']
-
-        # Get the texts to classify
-        texts = df_filtered['text'].tolist()
-
-        # Perform classification
-        predictions = self.model.predict(texts)
-
-        # Add predictions as a new column
-        df_filtered['classification'] = predictions
-
-        # Keep only opinionated sentences
-        df_classified = df_filtered[df_filtered['classification'] == 'opinion']
-
-        # Remove speakers with only one datapoint
-        speaker_counts = df_classified['speaker'].value_counts()
-        valid_speakers = speaker_counts[speaker_counts > 1].index
-        df_classified = df_classified[df_classified['speaker'].isin(valid_speakers)]
-
-        # Store result
-        self.__record[topic]['df_classified'] = df_classified
-
-        print(f'"Number of opinionated speeches for {topic}: {len(df_classified)}')
-        return df_classified
-    
-
-    def __get_speaker_sentences(self, speaker_name, topic):
-        """
-        Internal method to get all opinionated sentences from one speaker on a topic.
-        
-        Args:
-            speaker_name: Name of the speaker
-            topic: The topic to retrieve sentences for
-            
-        Returns:
-            DataFrame of sentences from this speaker about this topic
-        """
-        classified_df = self.__record[topic]['df_classified']
-        return classified_df[classified_df['speaker'] == speaker_name]
-        
+     
     
     def classify_filtered_sentences(self, topic):
         """
@@ -519,7 +463,152 @@ class StanceDetector:
         return speaker_embeddings, anchor_embeddings
     
     
-    # TODO: for each subtopic, creare axis of controversy and projecting party averages onto it 
+    # TODO: for each subtopic, create axis of controversy and projecting party averages onto it 
+
+    def axis_of_controversy(self, topic, issue, speaker_embeddings, anchor_embeddings):
+
+        """
+        Create an axis of controversy based on the stance anchors and project speaker positions onto it.
+        
+        This is STEP 5b of the analysis workflow.
+        - Uses the pro and con anchor embeddings to define a controversy axis
+        - Copmute party aberages in the original embedding space
+        - Project party averages onto the controversy axis to get a controversy score
+        - Higher scores indicate alignment with the "pro" position, lower scores with "con"
+        
+        Args:
+            topic: The topic to analyze
+            issue: The specific issue (from the generated anchors) to analyze
+            speaker_embeddings: Embeddings for each speaker's summary
+            anchor_embeddings: Embeddings for the pro and con anchors
+            
+        Returns:
+            DataFrame with columns: issue, party, controversy_score
+        """
+
+        # Compute party centroids in the original embedding space
+        sum_df = self.__record[topic]['df_summarized_speaker'].copy().reset_index(drop=True)
+        sum_df['embedding'] = list(speaker_embeddings)  # Add embeddings to DataFrame
+
+        party_centroids = (
+            sum_df
+            .groupby("party")['embedding']
+            .apply(lambda x: np.mean(list(x), axis=0))
+            .reset_index()
+            .rename(columns={'embedding': 'centroid'})
+        )
+
+        # Axis: CON → PRO, centred at midpoint
+        pro_emb, con_emb = anchor_embeddings[0], anchor_embeddings[1]
+        midpoint = (pro_emb + con_emb) / 2
+        axis = (pro_emb - con_emb)
+        axis = axis / np.linalg.norm(axis)
+
+        centroids_matrix = np.stack(party_centroids['centroid'].values)
+        party_centroids['controversy_score'] = (centroids_matrix - midpoint) @ axis
+
+        # Create a DataFrame with parties and their controversy scores
+        party_df = party_centroids[['party']].copy()
+        party_df['controversy_score'] = party_centroids['controversy_score']
+        party_df['issue'] = issue
+
+        return party_df
+
+
+    def plot_axis_of_controversy(self, party_df, issue, anchors=None):
+        """
+        Visualize the axis of controversy with party positions.
+
+        This is STEP 6 (visualization) of the analysis workflow.
+        - Plots parties on a horizontal line based on their controversy scores
+        - Colors each party distinctly and staggers labels to reduce overlap
+        - PRO/CON end markers indicate direction of alignment
+        - Optionally prints anchor descriptions below the plot
+
+        Args:
+            party_df: DataFrame with columns: issue, party, controversy_score
+            topic: The topic being visualized
+            issue: The specific issue being visualized
+            anchors: Optional dict with 'pro' and 'con' anchor texts
+        """
+        show_anchors = anchors is not None
+        fig, ax = plt.subplots(figsize=(14, 5 if show_anchors else 3.5))
+
+        df = party_df.sort_values('controversy_score').reset_index(drop=True)
+
+        # Assign distinct colors per party
+        unique_parties = sorted(df['party'].unique())
+        cmap = plt.get_cmap('tab10')
+        party_to_color = {p: cmap(i % 10) for i, p in enumerate(unique_parties)}
+        colors = [party_to_color[p] for p in df['party']]
+
+        x_min, x_max = df['controversy_score'].min(), df['controversy_score'].max()
+        pad = max((x_max - x_min) * 0.25, 0.05)
+
+        # Main axis line
+        ax.axhline(0, color='#444444', linewidth=2, zorder=2)
+
+        # Party points
+        ax.scatter(
+            df['controversy_score'], np.zeros(len(df)),
+            c=colors, s=150, zorder=5, linewidths=0.8, edgecolors='white'
+        )
+
+        # Stagger labels alternately above/below to reduce overlap
+        stagger_heights = [0.10, -0.14, 0.19, -0.24]
+        for i, (_, row) in enumerate(df.iterrows()):
+            yo = stagger_heights[i % len(stagger_heights)]
+            c = party_to_color[row['party']]
+            ax.annotate(
+                row['party'],
+                xy=(row['controversy_score'], 0.01 if yo > 0 else -0.01),
+                xytext=(row['controversy_score'], yo),
+                ha='center', va='center',
+                fontsize=8.5, color=c, fontweight='bold',
+                arrowprops=dict(arrowstyle='-', color=c, lw=0.8, alpha=0.5),
+                path_effects=[pe.withStroke(linewidth=2.5, foreground='white')]
+            )
+
+        # Neutral reference line
+        ax.axvline(0, color='gray', linestyle='--', linewidth=1, alpha=0.5, zorder=1)
+        ax.text(0, -0.34, 'neutral', ha='center', fontsize=7, color='gray', style='italic')
+
+        # PRO / CON end labels
+        ax.text(
+            x_max + pad * 0.75, 0, 'PRO ▶',
+            ha='left', fontsize=10, color='steelblue', fontweight='bold', va='center'
+        )
+        ax.text(
+            x_min - pad * 0.75, 0, '◀ CON',
+            ha='right', fontsize=10, color='firebrick', fontweight='bold', va='center'
+        )
+
+        ax.set_xlim(x_min - pad, x_max + pad)
+        ax.set_ylim(-0.40, 0.32)
+        ax.set_title(f"Axis of Controversy: {issue}", fontsize=12, fontweight='bold', pad=8)
+        ax.set_xlabel("Controversy Score", fontsize=9, color='#666666')
+        ax.set_yticks([])
+        for spine in ['left', 'right', 'top']:
+            ax.spines[spine].set_visible(False)
+        ax.grid(axis='x', alpha=0.2)
+
+        # Anchor descriptions at the bottom of the figure
+        if show_anchors:
+            plt.subplots_adjust(bottom=0.38)
+            fig.text(
+                0.05, 0.24,
+                f"PRO:  {anchors['pro']}",
+                ha='left', va='bottom', fontsize=8,
+                color='steelblue', style='italic'
+            )
+            fig.text(
+                0.05, 0.08,
+                f"CON:  {anchors['con']}",
+                ha='left', va='bottom', fontsize=8,
+                color='firebrick', style='italic'
+            )
+
+        plt.show()
 
     
     def compute_umap_embeddings(self,
