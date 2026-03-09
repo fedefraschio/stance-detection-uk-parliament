@@ -853,3 +853,98 @@ class StanceDetector:
         plt.subplots_adjust(bottom=0.30)
         plt.show()
 
+    # generate a gold standard ordering of parties on the controversy axis based on the generated anchors
+    def generate_gold_standard(self, parties, anchors, years, model="qwen3:0.6b"):
+        """
+        Generate a gold standard ordering of parties on the controversy axis.
+
+        Args:
+            parties: list[str]
+            anchors: dict with 'topic', 'pro', 'con'
+            years: list[int]
+            model: ollama model
+
+        Returns:
+            list[str] ordered from most CON-aligned to most PRO-aligned
+        """
+
+        parties_json = json.dumps(parties)
+
+        prompt = f"""
+    You are an expert in UK political party ideology.
+
+    GOAL
+    Order the parties along a single ideological axis between two anchors.
+
+    AXIS
+    0 = closest to CON
+    1 = closest to PRO
+
+    ISSUE
+    {anchors['topic']}
+
+    ANCHORS
+    PRO: {anchors['pro']}
+    CON: {anchors['con']}
+
+    PARTIES
+    {parties_json}
+
+    TASK
+    Rank ALL parties from the one closest to CON to the one closest to PRO.
+
+    OUTPUT CONSTRAINTS (MANDATORY)
+    - Return EXACTLY one JSON array.
+    - The array must contain ALL parties listed in PARTIES.
+    - Each party must appear exactly once.
+    - Party strings must match the input exactly.
+    - Do NOT expand abbreviations.
+    - Do NOT add or remove parties.
+
+    FORMAT
+    ["PARTY_A","PARTY_B","PARTY_C"]
+
+    STRICT PROHIBITIONS
+    No explanations.
+    No reasoning.
+    No comments.
+    No markdown.
+    No text before the array.
+    No text after the array.
+
+    The first character of the response must be "[" and the last must be "]".
+
+    OUTPUT:
+    """
+
+        response = ollama.chat(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            think=True,
+            options={
+                "temperature": 0,
+                "seed": self.random_seed
+            }
+        )
+
+        content = response["message"]["content"].strip()
+
+        # Extract JSON array safely
+        match = re.search(r"\[[^\]]+\]", content)
+        if not match:
+            raise ValueError(f"No JSON array found in response:\n{content}")
+
+        ranked_parties = json.loads(match.group())
+
+        # Validation
+        if set(ranked_parties) != set(parties):
+            raise ValueError(
+                f"Party mismatch.\nExpected: {parties}\nGot: {ranked_parties}\nRaw: {content}"
+            )
+
+        if len(ranked_parties) != len(parties):
+            raise ValueError(
+                f"Duplicate or missing parties.\nExpected {len(parties)} got {len(ranked_parties)}"
+            )
+
+        return ranked_parties
