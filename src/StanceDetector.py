@@ -10,6 +10,8 @@ import matplotlib.patheffects as pe
 import random
 import ollama
 import re
+from scipy.stats import spearmanr, kendalltau
+
 
 
 
@@ -870,53 +872,25 @@ class StanceDetector:
 
         parties_json = json.dumps(parties)
 
-        prompt = f"""
-    You are an expert in UK political party ideology.
+        example = json.dumps(parties[::-1], ensure_ascii=False)  # usa i nomi reali
 
-    GOAL
-    Order the parties along a single ideological axis between two anchors.
+        prompt = f"""You are a political scientist specialising in UK parliamentary politics ({years[0]}–{years[-1]}).
 
-    AXIS
-    0 = closest to CON
-    1 = closest to PRO
+            Rank these parties from most aligned with POSITION_A to most aligned with POSITION_B:
 
-    ISSUE
-    {anchors['topic']}
+            ISSUE: {anchors['topic']}
+            POSITION_A: {anchors['con']}
+            POSITION_B: {anchors['pro']}
 
-    ANCHORS
-    PRO: {anchors['pro']}
-    CON: {anchors['con']}
+            Parties to rank (use these exact strings):
+            {parties_json}
 
-    PARTIES
-    {parties_json}
+            Return ONLY a JSON array ordered from most POSITION_A-aligned to most POSITION_B-aligned.
+            Example format (NOT the correct answer):
+            {example}
 
-    TASK
-    Rank ALL parties from the one closest to CON to the one closest to PRO.
-
-    OUTPUT CONSTRAINTS (MANDATORY)
-    - Return EXACTLY one JSON array.
-    - The array must contain ALL parties listed in PARTIES.
-    - Each party must appear exactly once.
-    - Party strings must match the input exactly.
-    - Do NOT expand abbreviations.
-    - Do NOT add or remove parties.
-
-    FORMAT
-    ["PARTY_A","PARTY_B","PARTY_C"]
-
-    STRICT PROHIBITIONS
-    No explanations.
-    No reasoning.
-    No comments.
-    No markdown.
-    No text before the array.
-    No text after the array.
-
-    The first character of the response must be "[" and the last must be "]".
-
-    OUTPUT:
-    """
-
+            OUTPUT:"""
+        
         response = ollama.chat(
             model=model,
             messages=[{"role": "user", "content": prompt}],
@@ -934,7 +908,15 @@ class StanceDetector:
         if not match:
             raise ValueError(f"No JSON array found in response:\n{content}")
 
-        ranked_parties = json.loads(match.group())
+        stripped_array = match.group().strip("\n")
+
+        if stripped_array.count("[") != 1 or stripped_array.count("]") != 1:
+            raise ValueError(f"Invalid JSON array format:\n{stripped_array}")
+        
+        # DEBUG
+        print("Raw LLM response:", content)
+        
+        ranked_parties = json.loads(stripped_array)
 
         # Validation
         if set(ranked_parties) != set(parties):
@@ -948,3 +930,58 @@ class StanceDetector:
             )
 
         return ranked_parties
+    
+    def evaluate_ordering(self, pred_ordering: list, gold_ordering: list) -> dict:
+        """
+        Evaluate a predicted party ordering against a gold standard.
+
+        Computes Spearman's rho, Kendall's tau, and LCS ratio.
+        Only parties present in BOTH orderings are evaluated.
+
+        Args:
+            pred_ordering: list of party names ordered CON → PRO (from axis_of_controversy)
+            gold_ordering: list of party names ordered CON → PRO (from generate_gold_standard)
+
+        Returns:
+            dict with keys: spearman_rho, spearman_p, kendall_tau, kendall_p, lcs_ratio, n_parties
+        """
+
+        # Align on common parties only
+        common = [p for p in pred_ordering if p in gold_ordering]
+        n = len(common)
+
+        if n < 2:
+            print(f"Warning: only {n} party/parties in common — metrics not computable.")
+            return {
+                "spearman_rho": np.nan, "spearman_p": np.nan,
+                "kendall_tau":  np.nan, "kendall_p":  np.nan,
+                "lcs_ratio":    np.nan, "n_parties":  n
+            }
+
+        # Rank positions (0-indexed, lower = more CON)
+        pred_ranks = [pred_ordering.index(p) for p in common]
+        gold_ranks = [gold_ordering.index(p) for p in common]
+
+        rho, p_rho = spearmanr(pred_ranks, gold_ranks)
+        tau, p_tau = kendalltau(pred_ranks, gold_ranks)
+
+        # LCS
+        gold_common = [p for p in gold_ordering if p in common]
+        m, n_gold = len(common), len(gold_common)
+        dp = [[0] * (n_gold + 1) for _ in range(m + 1)]
+        for i in range(1, m + 1):
+            for j in range(1, n_gold + 1):
+                if common[i-1] == gold_common[j-1]:
+                    dp[i][j] = dp[i-1][j-1] + 1
+                else:
+                    dp[i][j] = max(dp[i-1][j], dp[i][j-1])
+        lcs = dp[m][n_gold] / max(m, n_gold)
+
+        return {
+            "spearman_rho": round(rho,  4),
+            "spearman_p":   round(p_rho, 4),
+            "kendall_tau":  round(tau,  4),
+            "kendall_p":    round(p_tau, 4),
+            "lcs_ratio":    round(lcs,  4),
+            "n_parties":    n
+        }
