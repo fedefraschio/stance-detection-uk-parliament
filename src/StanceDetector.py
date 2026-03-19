@@ -422,6 +422,27 @@ class StanceDetector:
         # return json.loads(content)
         #return content # DEBUG
 
+    # cosine similarity to compare anchors (useful for debugging) 
+    def cosine_similarity(self, vecA, vecB):
+        """
+        Compute cosine similarity between two vectors.
+        
+        Args:
+            vecA: First vector (numpy array)
+            vecB: Second vector (numpy array)
+            
+        Returns:
+            Cosine similarity score (float)
+        """
+        dot_product = np.dot(vecA, vecB)
+        normA = np.linalg.norm(vecA)
+        normB = np.linalg.norm(vecB)
+        if normA == 0 or normB == 0:
+            return 0.0
+        else:
+            return dot_product / (normA * normB)
+    
+
     def compute_embeddings(self, topic, anchors, model_name="Qwen/Qwen3-Embedding-0.6B"):
         """
         Compute embeddings for speaker summaries and stance anchors.
@@ -470,7 +491,7 @@ class StanceDetector:
     def axis_of_controversy(self, topic, issue, speaker_embeddings, anchor_embeddings):
 
         """
-        Create an axis of controversy based on the stance anchors and project speaker positions onto it.
+        Create an axis of controversy based on the stance anchors and project party positions onto it.
         
         This is STEP 5b of the analysis workflow.
         - Uses the pro and con anchor embeddings to define a controversy axis
@@ -856,7 +877,7 @@ class StanceDetector:
         plt.show()
 
     # generate a gold standard ordering of parties on the controversy axis based on the generated anchors
-    def generate_gold_standard(self, parties, anchors, years, model="qwen3:0.6b"):
+    def generate_gold_standard(self, parties, anchors, years, model="qwen3:0.6b"): #llama3.2:latest # qwen3:0.6b
         """
         Generate a gold standard ordering of parties on the controversy axis.
 
@@ -869,6 +890,9 @@ class StanceDetector:
         Returns:
             list[str] ordered from most CON-aligned to most PRO-aligned
         """
+
+        # shuffle parties to avoid any bias from the input order
+        random.shuffle(parties)
 
         parties_json = json.dumps(parties)
 
@@ -894,10 +918,10 @@ class StanceDetector:
         response = ollama.chat(
             model=model,
             messages=[{"role": "user", "content": prompt}],
-            think=True,
+            think=True, # if model supports thinking
             options={
-                "temperature": 0,
-                "seed": self.random_seed
+                "temperature": 0.25,
+                "seed": self.random_seed,
             }
         )
 
