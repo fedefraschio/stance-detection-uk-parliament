@@ -689,7 +689,7 @@ class StanceDetector:
         Create UMAP embeddings to visualize speaker positions on a topic.
         
         This is STEP 5 of the analysis workflow.
-        - Converts speaker summaries to numerical embeddings
+        - Converts speaker summaries to numerical embeddings using compute_embeddings()
         - Includes stance anchors (pro/con) in the embedding space
         - Reduces to 2D using UMAP for visualization
         
@@ -716,17 +716,11 @@ class StanceDetector:
         sum_df = self.__record[topic]['df_summarized_speaker'].copy()
         summaries = sum_df["summary"].tolist()
 
-        # Extract anchor texts (pro and con positions)
-        anchor_texts = [anchors['pro'], anchors['con']]
+        # Generate embeddings using the compute_embeddings method
+        speaker_embeddings, anchor_embeddings = self.compute_embeddings(topic, anchors, model_name)
         
-        # Load embedding model
-        model = SentenceTransformer(model_name)
-        
-        # Embed both speaker summaries AND anchors together
-        # (This ensures they're in the same embedding space)
-        all_texts = summaries + anchor_texts
-        embeddings = model.encode(all_texts, show_progress_bar=True)
-        
+        # Combine embeddings for UMAP reduction
+        embeddings = np.vstack([speaker_embeddings, anchor_embeddings])
 
         # Reduce embeddings to 2D using UMAP
         reducer = umap.UMAP(
