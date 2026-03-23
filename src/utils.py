@@ -198,3 +198,9 @@ def summarize_parliamentary_speeches(classified_df,keywords,  model_name, num_sa
     return df_results
 
 
+def politician_stance(summarizations, name):
+    summary = summarizations[summarizations['speaker'] == name]['summary']
+    if not summary.empty:
+        return summary.iloc[0]
+    else:
+        return f"No summary found for {name}."

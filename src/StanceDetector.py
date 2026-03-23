@@ -310,11 +310,9 @@ class StanceDetector:
         self.__record[topic]['df_summarized_speaker'] = self.__record[topic]['df_summarized_speaker'][~self.__record[topic]['df_summarized_speaker']['summary'].str.startswith('Please provide')]
         print("Summarization completed for topic:", topic)
         return self.__record[topic]['df_summarized_speaker']
+        
     
-
-    
-    
-    def generate_anchors(self, topic, model_name='gemma3'):
+    def generate_anchors(self, topic, general= False, temperature=0, model_name='gemma3'):
 
         """
         Generate stance anchors (opposing viewpoints) for a topic.
@@ -326,6 +324,7 @@ class StanceDetector:
         
         Args:
             topic: The topic to generate anchors for
+            general: Whether to generate a general anchor for the whole topic (True) or specific anchors for each sub-issue (False)
             model_name: Ollama model to use
             
         Returns:
@@ -391,6 +390,47 @@ class StanceDetector:
         {text}
         """
 
+        if general:
+
+            prompt = f"""
+                You are given a dataset of summaries of political statements about the topic: "{topic}".
+                
+                Each summary represents the opinion of one politician.
+
+                Your task is to identify the single most important contested policy issue from the dataset and express it as a structured debate pair.
+
+                Method:
+                1. Read all summaries.
+                2. Identify the most central policy question or normative dispute.
+                3. Group similar viewpoints.
+                4. Detect two opposing positions on this issue.
+                5. Formulate a neutral issue statement and one "For" and one "Against" argument.
+
+                Constraints:
+                - Use ONLY positions supported by the summaries.
+                - Do NOT invent arguments.
+                - The issue must be a clear political question.
+                - "For" and "Against" must represent genuinely opposing positions.
+                
+                Writing rules:
+                - Issue: 10–18 words
+                - For / Against: 20–35 words
+                - Neutral analytical tone.
+                - Do not mention politicians or parties.
+                
+                Output format (strict):
+
+                Issue: <Neutral statement of the main contested issue>
+                For: <Position emphasising one set of causes, actors, and solutions>
+                Against: <Position emphasising a completely different set of causes, actors, and solutions>
+
+                Generate EXACTLY ONE issue.
+
+                Dataset:
+                {text}
+                """
+            
+
         # Request structured JSON output from Ollama
         response = ollama.chat(
             model=model_name,
@@ -398,7 +438,7 @@ class StanceDetector:
                       {"role": "system", "content": system_message}],
             # removed 'format' as it can slow down response and is not always necessary if the prompt is clear enough
             # temperature set to 0 might slow down decoding
-            options={"temperature": 0, 'seed': self.random_seed}
+            options={"temperature": temperature, 'seed': self.random_seed}
         )
 
         content = response["message"]["content"]
@@ -417,6 +457,9 @@ class StanceDetector:
             for m in matches
             ]
         
+        if general:
+            return anchors[0]  # Return the single general anchor as a dict
+
         return anchors
 
         # return json.loads(content)
