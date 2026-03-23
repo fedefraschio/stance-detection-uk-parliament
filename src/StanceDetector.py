@@ -19,31 +19,24 @@ class StanceDetector:
     
     
     """
-    A class for detecting and analyzing political stances in parliamentary speeches.
-    
-    WORKFLOW:
-    1. Load parliamentary speeches dataset
-    2. Filter speeches by topic (using keywords and policy areas)
-    3. Classify sentences as opinionated or non-opinionated
-    4. Keep only opinionated sentences for analysis
-    5. Summarize each speaker's stance on the topic
-    6. Generate stance anchors (opposing viewpoints)
-    7. Create UMAP visualizations to map political positions
-    
-    DATA STRUCTURE:
-    The class stores topics in a record dictionary:
-    {
-        "nuclear": {
-            'keywords': [...],           # Words to search for
-            'policyarea': [7, 8],        # Policy area codes
-            'df_filtered': ...,          # Speeches matching topic
-            'df_classified': ...,        # Opinionated sentences only
-            'df_summarized_speaker': ... # Summarized stances per speaker
-        }
-    }
-    
-    INPUT DATASET COLUMNS:
-    [ 'date', 'agenda', 'speaker', 'party', 'text', 'policyarea']
+    Detect and analyze political stances in parliamentary speeches.
+
+    Typical pipeline:
+    1. Register a topic with keywords and policy areas.
+    2. Filter speeches for the topic (optionally by year).
+    3. Classify filtered speeches as opinion/non-opinion.
+    4. Summarize each speaker stance with an LLM.
+    5. Generate contested issue anchors (pro/con positions).
+    6. Build embeddings and project parties on controversy axes.
+    7. Visualize positions with UMAP and/or axis plots.
+
+    Internal state is stored in a topic-keyed record dictionary, where each
+    topic can contain keys such as: keywords, policyarea, df_filtered,
+    df_classified, df_summarized_speaker.
+
+    Expected speech DataFrame columns include at least:
+    date, agenda, speaker, party, text, policyarea.
+    If year-based filtering is used, a year column is also required.
     """
     __record=None
     __speeches_df=None
@@ -51,13 +44,13 @@ class StanceDetector:
     def __init__( self, speech,records, cl_model_hf="andreacristiano/stancedetection", random_seed=42):
 
         """
-        Initialize the StanceDetector.
-        
+        Initialize the detector with input data, topic records, and classifier.
+
         Args:
-            speech: DataFrame containing all parliamentary speeches
-            records: Dictionary to store topic-specific data
-            cl_model_hf: HuggingFace model for opinion classification
-            random_seed: Seed for reproducible random operations
+            speech: DataFrame containing parliamentary speeches.
+            records: Dictionary storing topic configuration and intermediate data.
+            cl_model_hf: SetFit model id used for opinion classification.
+            random_seed: Seed used for reproducible stochastic operations.
         """
 
         self.__speeches_df = speech
@@ -67,22 +60,31 @@ class StanceDetector:
 
     # ==================== GETTER METHODS ====================
     def get_records(self):
+        """Return the full internal topic record dictionary."""
         return self.__record
     
     def get_speeches(self):
+        """Return the source speeches DataFrame."""
         return self.__speeches_df
     
     def get_filtered_speeches(self, topic):
+        """Return the filtered speeches DataFrame for a topic."""
         return self.__record[topic]['df_filtered']
     
     def get_classified_speeches(self, topic):
+        """Return the classified (opinion-only) DataFrame for a topic."""
         return self.__record[topic]['df_classified']
     
 
     # ==================== SETTER METHODS ====================
 
-    # It will be used to set the summarization results, mainly for testing purposes, but it can also be useful if we want to modify the summarization results before using them for anchor generation or visualization.
     def set_summarization_for_topic(self, topic, df_summarized_speaker):
+        """
+        Set or overwrite speaker-level summarization results for a topic.
+
+        Useful for testing and for manually editing summaries before anchor
+        generation or downstream visualizations.
+        """
         self.__record[topic]['df_summarized_speaker'] = df_summarized_speaker
 
     # ====================  METHODS ====================
@@ -90,12 +92,12 @@ class StanceDetector:
         
     def add_record(self, topic, keywords, policyarea):
         """
-        Add a new topic to track.
-        
+        Register a new topic with its keyword and policy-area filters.
+
         Args:
-            topic: Name of the topic (e.g., 'nuclear', 'immigration')
-            keywords: List of keywords to search for in speeches
-            policyarea: List of policy area codes to filter by
+            topic: Topic name (for example, 'nuclear' or 'immigration').
+            keywords: List of keywords to match in speech text.
+            policyarea: List of policy-area codes used for filtering.
         """
         self.__record[topic] = {
             'keywords':keywords,
@@ -104,10 +106,13 @@ class StanceDetector:
 
     def __get_keywords_policyarea(self,topic):
         """
-        Internal method to retrieve keywords and policy areas for a topic.
-        
+        Retrieve keyword and policy-area filters configured for a topic.
+
+        Args:
+            topic: Topic key present in the internal record.
+
         Returns:
-            Tuple of (keywords_list, policyarea_list)
+            Tuple[keywords_list, policyarea_list].
         """
         return self.__record[topic]['keywords'], self.__record[topic]['policyarea']
     
@@ -163,10 +168,19 @@ class StanceDetector:
     
     def classify_filtered_sentences(self, topic):
         """
-        IN: filtered dataframe about a topic
-        OUT: classified dataframe containing opinionated sentences only
-            + a new column 'classification' in filtered dataframe
-            + speakers with only one datapoint removed
+        Classify filtered speeches and retain opinionated entries.
+
+        Behavior:
+        - Reads df_filtered for the topic.
+        - Adds a classification column using the SetFit model.
+        - Keeps only rows labeled opinion.
+        - Drops speakers with a single opinionated speech.
+
+        Args:
+            topic: Topic key with an existing df_filtered DataFrame.
+
+        Returns:
+            DataFrame containing opinionated speeches after speaker filtering.
         """
         print("Classifying filtered speeches for topic:", topic)
 
@@ -199,8 +213,14 @@ class StanceDetector:
 
     def __get_speaker_sentences(self, speaker_name, topic):
         """
-        Retrieve all sentences spoken by a specific speaker on a given topic.
-        
+        Retrieve all classified rows for a speaker on a topic.
+
+        Args:
+            speaker_name: Speaker name to filter on.
+            topic: Topic key with an existing df_classified DataFrame.
+
+        Returns:
+            DataFrame subset of the classified speeches for that speaker.
         """
         classified_df = self.__record[topic]['df_classified']
         return classified_df[classified_df['speaker'] == speaker_name]
@@ -209,20 +229,18 @@ class StanceDetector:
     def sum_member_speeches(self, speaker_name, topic, model_name='gemma3'):
         
         """
-        Summarize one speaker's stance on a topic using an LLM.
-        
-        This is STEP 3a (per speaker) of the analysis workflow.
-        - Collects all opinionated sentences from the speaker
-        - Sends them to an LLM for summarization
-        - Returns a one-sentence summary of their stance
-        
+        Summarize one speaker stance on a topic using Ollama.
+
+        The method collects all opinionated speeches for the speaker and asks
+        the LLM to produce one concise factual stance sentence.
+
         Args:
-            speaker_name: Name of the speaker to summarize
-            topic: The topic to summarize about
-            model_name: Ollama model to use for summarization
-            
+            speaker_name: Speaker to summarize.
+            topic: Topic key.
+            model_name: Ollama model name.
+
         Returns:
-            DataFrame with columns: summary, party, speaker
+            Single-row DataFrame with columns: summary, party, speaker.
         """
 
         # Use verbose topic description for better LLM understanding
@@ -277,19 +295,18 @@ class StanceDetector:
 
     def summarize_all_sentences(self, topic, model_name='gemma3'):
         """
-        Summarize stances for all speakers on a topic.
-        
-        This is STEP 3 of the analysis workflow.
-        - Calls sum_member_speeches() for each speaker
-        - Combines all summaries into one DataFrame
-        - Removes any failed summaries
-        
+        Summarize stance for every speaker in a topic classified dataset.
+
+        Calls sum_member_speeches for each speaker, concatenates the output,
+        stores it as df_summarized_speaker, and removes obvious fallback rows
+        that start with Please provide.
+
         Args:
-            topic: The topic to summarize
-            model_name: Ollama model to use
-            
+            topic: Topic key.
+            model_name: Ollama model name.
+
         Returns:
-            DataFrame with columns: summary, party, speaker
+            DataFrame with columns: summary, party, speaker.
         """
 
         # Get all unique speakers who have opinionated sentences
@@ -315,20 +332,20 @@ class StanceDetector:
     def generate_anchors(self, topic, general= False, temperature=0, model_name='gemma3'):
 
         """
-        Generate stance anchors (opposing viewpoints) for a topic.
-        
-        This is STEP 4 of the analysis workflow.
-        - Takes all speaker summaries
-        - Uses LLM to identify key issues and opposing views
-        - Returns structured anchors (pro/con positions)
-        
+        Generate contested issue anchors (pro/con pairs) from summaries.
+
+        Uses an LLM to infer debated issues from topic summaries and returns
+        structured anchors with topic, pro, and con fields.
+
         Args:
-            topic: The topic to generate anchors for
-            general: Whether to generate a general anchor for the whole topic (True) or specific anchors for each sub-issue (False)
-            model_name: Ollama model to use
-            
+            topic: Topic key.
+            general: If True, generate one main issue; else generate multiple.
+            temperature: Decoding temperature for Ollama.
+            model_name: Ollama model name.
+
         Returns:
-            List of dictionaries with keys: topic, pro, con
+            If general is False: list[dict] with keys topic, pro, con.
+            If general is True: a single dict with keys topic, pro, con.
         """
         print("Generating stance anchors for topic:", topic)
         summarizations = self.__record[topic]['df_summarized_speaker']
@@ -469,13 +486,13 @@ class StanceDetector:
     def cosine_similarity(self, vecA, vecB):
         """
         Compute cosine similarity between two vectors.
-        
+
         Args:
-            vecA: First vector (numpy array)
-            vecB: Second vector (numpy array)
-            
+            vecA: First vector.
+            vecB: Second vector.
+
         Returns:
-            Cosine similarity score (float)
+            Float cosine similarity score, or 0.0 when a norm is zero.
         """
         dot_product = np.dot(vecA, vecB)
         normA = np.linalg.norm(vecA)
@@ -488,18 +505,15 @@ class StanceDetector:
 
     def compute_embeddings(self, topic, anchors, model_name="Qwen/Qwen3-Embedding-0.6B"):
         """
-        Compute embeddings for speaker summaries and stance anchors.
-        
-        This is STEP 5a of the analysis workflow.
-        - Converts speaker summaries to numerical embeddings
-        - Includes stance anchors (pro/con) in the embedding space
-        
+        Compute embeddings for speaker summaries and a single anchor pair.
+
         Args:
-            topic: The topic to compute embeddings for
-            anchors: Dictionary with 'pro' and 'con' stance descriptions
-            model_name: SentenceTransformer model for embeddings
+            topic: Topic key.
+            anchors: Dict containing pro and con strings.
+            model_name: SentenceTransformer model name.
+
         Returns:
-            Tuple of (speaker_embeddings, anchor_embeddings)
+            Tuple (speaker_embeddings, anchor_embeddings).
         """
         print("Computing embeddings for topic:", topic)
         
@@ -534,22 +548,19 @@ class StanceDetector:
     def axis_of_controversy(self, topic, issue, speaker_embeddings, anchor_embeddings):
 
         """
-        Create an axis of controversy based on the stance anchors and project party positions onto it.
-        
-        This is STEP 5b of the analysis workflow.
-        - Uses the pro and con anchor embeddings to define a controversy axis
-        - Copmute party aberages in the original embedding space
-        - Project party averages onto the controversy axis to get a controversy score
-        - Higher scores indicate alignment with the "pro" position, lower scores with "con"
-        
+        Project party positions onto a controversy axis defined by anchors.
+
+        The axis is built from con to pro anchor embeddings, centered at their
+        midpoint. Party centroids are then projected onto this axis.
+
         Args:
-            topic: The topic to analyze
-            issue: The specific issue (from the generated anchors) to analyze
-            speaker_embeddings: Embeddings for each speaker's summary
-            anchor_embeddings: Embeddings for the pro and con anchors
-            
+            topic: Topic key.
+            issue: Issue label associated with this anchor pair.
+            speaker_embeddings: Array of speaker summary embeddings.
+            anchor_embeddings: Array with pro and con anchor embeddings.
+
         Returns:
-            DataFrame with columns: issue, party, controversy_score
+            DataFrame with columns: issue, party, controversy_score.
         """
 
         # Compute party centroids in the original embedding space
@@ -585,17 +596,13 @@ class StanceDetector:
         """
         Visualize the axis of controversy with party positions.
 
-        This is STEP 6 (visualization) of the analysis workflow.
-        - Plots parties on a horizontal line based on their controversy scores
-        - Colors each party distinctly and staggers labels to reduce overlap
-        - PRO/CON end markers indicate direction of alignment
-        - Optionally prints anchor descriptions below the plot
+        Plots parties on a horizontal line by controversy_score, adds PRO/CON
+        direction markers, and optionally shows anchor text.
 
         Args:
-            party_df: DataFrame with columns: issue, party, controversy_score
-            topic: The topic being visualized
-            issue: The specific issue being visualized
-            anchors: Optional dict with 'pro' and 'con' anchor texts
+            party_df: DataFrame with columns issue, party, controversy_score.
+            issue: Issue label for the plot title.
+            anchors: Optional dict with pro and con strings.
         """
         show_anchors = anchors is not None
         fig, ax = plt.subplots(figsize=(14, 5 if show_anchors else 3.5))
@@ -686,28 +693,26 @@ class StanceDetector:
                            min_dist=0.1,
                            metric="cosine",):
         """
-        Create UMAP embeddings to visualize speaker positions on a topic.
-        
-        This is STEP 5 of the analysis workflow.
-        - Converts speaker summaries to numerical embeddings using compute_embeddings()
-        - Includes stance anchors (pro/con) in the embedding space
-        - Reduces to 2D using UMAP for visualization
-        
+        Compute UMAP coordinates for speaker summaries and anchor points.
+
+        Speaker and anchor texts are embedded in the same space and reduced
+        jointly with UMAP.
+
         Args:
-            topic: The topic to visualize
-            anchors: Dictionary with 'pro' and 'con' stance descriptions
-            model_name: SentenceTransformer model for embeddings
-            n_components: Number of UMAP dimensions (usually 2 for plotting)
-            n_neighbors: UMAP parameter (affects local vs global structure)
-            min_dist: UMAP parameter (affects point spacing)
-            metric: Distance metric for UMAP
-            
+            topic: Topic key.
+            anchors: Dict containing topic, pro, con.
+            model_name: SentenceTransformer model name.
+            n_components: Number of output dimensions.
+            n_neighbors: UMAP neighborhood size.
+            min_dist: UMAP minimum distance.
+            metric: UMAP distance metric.
+
         Returns:
-            Dictionary containing:
-            - 'df': DataFrame with UMAP coordinates (umap_x, umap_y)
-            - 'reduced_embeddings': Full UMAP array (speakers + anchors)
-            - 'reduced_anchors': UMAP coordinates for pro/con anchors
-            - 'anchors': The input anchor dictionary
+            Dict with keys:
+            - df: speaker DataFrame with umap_x and umap_y.
+            - reduced_embeddings: full reduced matrix (speakers + anchors).
+            - reduced_anchors: reduced coordinates for pro/con anchors.
+            - anchors: input anchor dictionary.
         """
 
         print("Computing UMAP embeddings for topic:", topic)
@@ -756,20 +761,14 @@ class StanceDetector:
                              show_speaker_labels=True,
                              label_fontsize=8):
         """
-        Visualize speaker positions and party centroids on a 2D UMAP plot.
-        
-        This is STEP 6 (visualization) of the analysis workflow.
-        - Plots individual speakers colored by party
-        - Shows party average positions (centroids)
-        - Displays stance anchors (pro/con) as black diamonds
-        - Includes anchor descriptions below the plot
-        
+        Plot UMAP speaker points, party centroids, and stance anchors.
+
         Args:
-            umap_data: Output from compute_umap_embeddings()
-            show_speeches: Whether to show individual speaker points
-            show_party_averages: Whether to show party centroid markers
-            show_speaker_labels: Whether to show speaker names on datapoints
-            label_fontsize: Font size for speaker labels
+            umap_data: Output dictionary from compute_umap_embeddings.
+            show_speeches: Whether to draw individual speaker points.
+            show_party_averages: Whether to draw party centroid markers.
+            show_speaker_labels: Whether to annotate each speaker point.
+            label_fontsize: Font size for speaker labels.
         """
         # Extract data from the UMAP results
         sum_df = umap_data['df']
@@ -913,19 +912,18 @@ class StanceDetector:
         plt.subplots_adjust(bottom=0.30)
         plt.show()
 
-    # generate a gold standard ordering of parties on the controversy axis based on the generated anchors
     def generate_gold_standard(self, parties, anchors, years, model="qwen3:0.6b"): #llama3.2:latest # qwen3:0.6b
         """
-        Generate a gold standard ordering of parties on the controversy axis.
+        Generate an LLM-based reference ordering of parties on the issue axis.
 
         Args:
-            parties: list[str]
-            anchors: dict with 'topic', 'pro', 'con'
-            years: list[int]
-            model: ollama model
+            parties: Party names to rank from CON to PRO.
+            anchors: Dict with topic, pro, and con descriptions.
+            years: Year interval used as historical context in the prompt.
+            model: Ollama model name.
 
         Returns:
-            list[str] ordered from most CON-aligned to most PRO-aligned
+            List of party names ordered from most CON-aligned to most PRO-aligned.
         """
 
         # shuffle parties to avoid any bias from the input order
@@ -994,17 +992,18 @@ class StanceDetector:
     
     def evaluate_ordering(self, pred_ordering: list, gold_ordering: list) -> dict:
         """
-        Evaluate a predicted party ordering against a gold standard.
+        Evaluate predicted ordering against a reference ordering.
 
-        Computes Spearman's rho, Kendall's tau, and LCS ratio.
-        Only parties present in BOTH orderings are evaluated.
+        Computes Spearman rho, Kendall tau, and LCS ratio on parties that are
+        present in both input lists.
 
         Args:
-            pred_ordering: list of party names ordered CON → PRO (from axis_of_controversy)
-            gold_ordering: list of party names ordered CON → PRO (from generate_gold_standard)
+            pred_ordering: Party names ordered CON to PRO from model projection.
+            gold_ordering: Party names ordered CON to PRO from reference ranking.
 
         Returns:
-            dict with keys: spearman_rho, spearman_p, kendall_tau, kendall_p, lcs_ratio, n_parties
+            Dict with keys:
+            spearman_rho, spearman_p, kendall_tau, kendall_p, lcs_ratio, n_parties.
         """
 
         # Align on common parties only
