@@ -47,6 +47,7 @@ class StanceDetector:
     """
     __record=None
     __speeches_df=None
+    __test_results=None
 
     def __init__( self, speech,records, cl_model_hf="andreacristiano/stancedetection", random_seed=42):
 
@@ -62,6 +63,7 @@ class StanceDetector:
 
         self.__speeches_df = speech
         self.__record= records
+        self.__test_results = pd.DataFrame()
         self.model= SetFitModel.from_pretrained(cl_model_hf)
         self.random_seed = random_seed
 
@@ -77,6 +79,9 @@ class StanceDetector:
     
     def get_classified_speeches(self, topic):
         return self.__record[topic]['df_classified']
+
+    def get_test_results(self):
+        return self.__test_results
     
 
     # ==================== SETTER METHODS ====================
@@ -229,6 +234,8 @@ class StanceDetector:
         topic_verbose=topic
         if topic=='nuclear':
             topic_verbose = 'the use of nuclear energy as an energy source for the future'
+        elif topic=='Gaza':
+            topic_verbose = 'the conflict in Palestine and the humanitarian situation in Gaza'
         
         # Get all sentences from this speaker about this topic
         speaker_sentences = self.__get_speaker_sentences(speaker_name, topic)
@@ -240,7 +247,7 @@ class StanceDetector:
         context_prompt=f'Based on the politician’s statements in the following parliamentary speeches, infer and summarize this politician’s stance on {topic_verbose}. This summary is intended for those who have little knowledge of British politics. Please summarize in a way that is easy to understand even for those who are not interested in politics. \n{full_text}.'
 
         # System prompt: ensure factual, concise output
-        sys_prompt="You are an expert in UK parliamentary politics. Provide only a single, clear, concise, and purely factual summary sentence of the politician's stance. Do not use introductory phrases like 'Okay,', 'Based on,', or 'From this,'. Do not use colloquial language, filler words, or explanations. Output the summary sentence directly."
+        sys_prompt="You are an expert in UK parliamentary politics. Provide a clear, concise, and purely factual summary of the politician's stance. Do not use introductory phrases like 'Okay,', 'Based on,', or 'From this,'. Do not use colloquial language, filler words, or explanations. Output the summary sentence directly."
         
         # Prepare the request to Ollama API
         payload = {
@@ -257,7 +264,7 @@ class StanceDetector:
             response = requests.post(
                 "http://localhost:11434/api/generate",
                 json=payload,
-                timeout=60
+                timeout=300
             )
             response.raise_for_status()
             
@@ -353,14 +360,14 @@ class StanceDetector:
 
         Each summary represents the opinion of one politician.
 
-        Your task is to reconstruct the main contested policy issues discussed in the dataset and express them as structured debate pairs.
+        Your task is to reconstruct the main contested policy issues and express them as structured debate pairs where the two positions are polar opposite not just different in degree, but far very apart in the discussion on the specific topic.
 
         Method:
         1. Read all summaries.
         2. Identify recurring policy questions or normative disputes.
         3. Group similar viewpoints.
-        4. Detect two opposing positions on each issue.
-        5. Formulate a neutral issue statement and one "For" and one "Against" argument.
+        4. Detect two strongly opposed positions on each issue.
+        5. Formulate a neutral issue statement and one "For" and one "Against" argument, .
 
         Constraints:
         - Use ONLY positions supported by the summaries.
@@ -369,8 +376,6 @@ class StanceDetector:
         - "For" and "Against" must represent genuinely opposing positions.
 
         Writing rules:
-        - Issue: 10–18 words
-        - For / Against: 20–35 words
         - Neutral analytical tone.
         - Do not mention politicians or parties.
         - Avoid duplicate issues.
@@ -386,6 +391,10 @@ class StanceDetector:
         Against: <Argument opposing the issue>
 
         Generate between 5 and 8 issues.
+        - The first issue must be the umbrella issue that best encapsulates the topic as a whole; it should capture the fundamental overall divide, not just the most salient subtopic
+        - Each issue must be distinct and non-overlapping.
+        - "For" and "Against" statements should each be max 2 sentences long, dense with argumentative content.
+
 
         Dataset:
         {text}
@@ -521,7 +530,7 @@ class StanceDetector:
         return party_df
 
 
-    def plot_axis_of_controversy(self, speaker_df, anchors):
+    def plot_axis_of_controversy(self, speaker_df, anchors, figsize=None):
         """
         Visualize the controversy axis at the individual speaker level.
 
@@ -532,6 +541,7 @@ class StanceDetector:
         Args:
             speaker_df: DataFrame with columns: speaker, party, controversy_score
             anchors: Dict with keys 'topic', 'pro', 'con'
+            figsize: Optional matplotlib figure size tuple (width, height)
         """
         import matplotlib.patheffects as pe
 
@@ -546,7 +556,9 @@ class StanceDetector:
 
         show_anchors = anchors is not None
         fig_height = max(4, n_parties * 0.7) + (2.5 if show_anchors else 0)
-        fig, ax = plt.subplots(figsize=(14, fig_height))
+        if figsize is None:
+            figsize = (14, fig_height)
+        fig, ax = plt.subplots(figsize=figsize)
 
         # Color palette consistent with party-level plot
         cmap = plt.get_cmap('tab10')
@@ -713,7 +725,8 @@ class StanceDetector:
                              show_speeches=True,
                              show_party_averages=True,
                              show_speaker_labels=True,
-                             label_fontsize=8):
+                             label_fontsize=8,
+                             figsize=(12, 12)):
         """
         Visualize speaker positions and party centroids on a 2D UMAP plot.
         
@@ -729,6 +742,7 @@ class StanceDetector:
             show_party_averages: Whether to show party centroid markers
             show_speaker_labels: Whether to show speaker names on datapoints
             label_fontsize: Font size for speaker labels
+            figsize: Figure size passed to matplotlib (width, height)
         """
         # Extract data from the UMAP results
         sum_df = umap_data['df']
@@ -755,7 +769,7 @@ class StanceDetector:
         cmap = plt.get_cmap("tab10")
 
         # Create the plot
-        fig, ax = plt.subplots(figsize=(12, 12))
+        fig, ax = plt.subplots(figsize=figsize)
 
         # Plot each party's data
         for party in unique_parties:
@@ -1002,3 +1016,44 @@ class StanceDetector:
             "lcs_ratio":    round(lcs,  4),
             "n_parties":    n
         }
+
+    def test_results(self,
+                     pred_ordering: list,
+                     gold_ordering: list,
+                     summarization_model: str,
+                     embedding_model: str,
+                     anchor_generation_model: str,
+                     topic: str = None,
+                     issue: str = None) -> pd.DataFrame:
+        """
+        Evaluate an ordering and store results with model metadata in a cumulative DataFrame.
+
+        Args:
+            pred_ordering: Predicted party ordering (CON -> PRO)
+            gold_ordering: Gold standard party ordering (CON -> PRO)
+            summarization_model: Model used for summarization
+            embedding_model: Model used for embeddings
+            anchor_generation_model: Model used for anchor generation
+            topic: Optional topic label for the experiment
+            issue: Optional issue label for the experiment
+
+        Returns:
+            DataFrame containing all accumulated test runs.
+        """
+        metrics = self.evaluate_ordering(pred_ordering=pred_ordering, gold_ordering=gold_ordering)
+
+        result_row = {
+            "topic": topic,
+            "issue": issue,
+            "summarization_model": summarization_model,
+            "embedding_model": embedding_model,
+            "anchor_generation_model": anchor_generation_model,
+            **metrics,
+        }
+
+        self.__test_results = pd.concat(
+            [self.__test_results, pd.DataFrame([result_row])],
+            ignore_index=True,
+        )
+
+        return self.__test_results

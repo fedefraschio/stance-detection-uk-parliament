@@ -1,0 +1,42 @@
+[
+    {
+        "topic": "Should Hamas be recognized as a legitimate political entity in any peace process?",
+        "pro": "Hamas's commitment to Israel's destruction and refusal to renounce violence disqualify it from participating in negotiations.",
+        "con": "Hamas's political legitimacy should be assessed based on its actions, not preconditions, to enable meaningful dialogue."
+    },
+    {
+        "topic": "Is a two-state solution viable without addressing Hamas's influence in Gaza?",
+        "pro": "Hamas's control over Gaza undermines Palestinian statehood and must be resolved before peace talks.",
+        "con": "A two-state solution requires addressing Israeli settlements and occupation, not solely Hamas's actions."
+    },
+    {
+        "topic": "Should international actors prioritize humanitarian aid over security concerns in Gaza?",
+        "pro": "Blockades and restrictions exacerbate the humanitarian crisis and fuel radicalization.",
+        "con": "Security measures are necessary to prevent Hamas from exploiting aid for military purposes."
+    },
+    {
+        "topic": "Does Israel's military action in Gaza violate humanitarian law?",
+        "pro": "Targeting civilians and using infrastructure for attacks constitute war crimes.",
+        "con": "Israel's actions are defensive and justified under self-defense principles."
+    },
+    {
+        "topic": "Should the UK and EU take stronger action against Israeli settlements in East Jerusalem?",
+        "pro": "Settlements illegally occupy Palestinian land and isolate East Jerusalem from the West Bank.",
+        "con": "Settlements are part of Israel's sovereign right and do not hinder a two-state solution."
+    },
+    {
+        "topic": "Is Hamas's rejection of Israel's right to exist a fundamental obstacle to peace?",
+        "pro": "Hamas's ideology threatens Israel's existence and must be addressed for any agreement.",
+        "con": "Peace requires mutual recognition, not unilateral concessions from one side."
+    },
+    {
+        "topic": "Should the international community impose sanctions on Iran for supporting Hamas?",
+        "pro": "Iranian funding fuels Hamas's violence and destabilizes the Middle East.",
+        "con": "Sanctions risk escalating tensions and ignore Hamas's direct responsibility for attacks."
+    },
+    {
+        "topic": "Can a Palestinian state be established without resolving the status of East Jerusalem?",
+        "pro": "East Jerusalem's status is inseparable from Palestinian statehood and must be resolved first.",
+        "con": "A two-state solution can proceed without East Jerusalem, focusing on other territorial disputes."
+    }
+]
