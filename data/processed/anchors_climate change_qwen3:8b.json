@@ -1,0 +1,52 @@
+[
+  {
+    "topic": "Whether energy policy should prioritize renewable subsidies or fossil fuel support",
+    "pro": "Subsidies for wind, solar, and biomass are essential to accelerate decarbonization, reduce reliance on fossil fuels, and address climate risks despite high costs.",
+    "con": "Subsidies for renewables distort markets, raise energy costs, and harm competitiveness; fossil fuels and nuclear power should be prioritized for affordability and energy security."
+  },
+  {
+    "topic": "Whether energy markets should be tightly regulated or left free",
+    "pro": "Governments must enforce strict oversight of energy companies to protect consumers, prevent monopolies, and align markets with climate goals.",
+    "con": "Energy markets should operate without government interference because state intervention stifles innovation and increases costs for households and businesses."
+  },
+  {
+    "topic": "Whether carbon pricing is necessary despite competitiveness concerns",
+    "pro": "A carbon price floor is necessary to incentivize low-carbon technologies and support international climate commitments even if it raises short-term costs.",
+    "con": "Carbon pricing unfairly burdens domestic industries, reduces global competitiveness, and risks job losses; more economically viable alternatives should be preferred."
+  },
+  {
+    "topic": "Whether nuclear power should play a central role in climate strategy",
+    "pro": "Nuclear power is a low-carbon and reliable energy source that is critical for meeting long-term climate targets despite its high costs.",
+    "con": "Nuclear power is too expensive, slow to deploy, and risky due to safety and waste concerns, and its dependence on subsidies undermines energy independence."
+  },
+  {
+    "topic": "Whether climate policy should prioritize affordability or decarbonization",
+    "pro": "Energy policy should prioritize affordability because high bills and fuel poverty are worsened by costly low-carbon technologies and renewable subsidies.",
+    "con": "Climate policy must prioritize decarbonization through measures like carbon pricing and renewable subsidies even if they create short-term economic burdens."
+  },
+  {
+    "topic": "Whether shale gas should be used as a transitional fuel",
+    "pro": "Domestic shale gas can reduce reliance on imports, create jobs, and serve as a lower-emission transitional fuel while renewable capacity expands.",
+    "con": "Shale gas delays the shift to renewables, creates environmental risks such as methane leaks, and undermines climate goals."
+  },
+  {
+    "topic": "Whether energy planning should emphasize community input or centralized decision-making",
+    "pro": "Local communities should have a strong voice in renewable energy planning to ensure public acceptance, fair benefits, and protection for vulnerable households.",
+    "con": "Energy projects should be decided by governments and industry experts to maximize efficiency and meet national climate targets."
+  },
+  {
+    "topic": "Whether carbon capture should be prioritized over renewable energy",
+    "pro": "Carbon capture and storage is a practical near-term way to cut emissions from fossil fuels and should be prioritized over costly and unreliable renewables.",
+    "con": "Carbon capture is economically weak and delayed, while renewables are the only credible path to deep decarbonization despite current cost challenges."
+  },
+  {
+    "topic": "Whether national energy policy should follow EU renewable targets or domestic priorities",
+    "pro": "Meeting EU renewable targets is important for climate leadership and attracting green investment, even when it requires public support.",
+    "con": "EU renewable mandates undermine national energy independence, and domestic priorities such as shale gas and nuclear should come first."
+  },
+  {
+    "topic": "Whether governments should mandate energy efficiency measures",
+    "pro": "Governments should require energy efficiency measures like insulation and smart meters to reduce emissions and lower bills even if markets are disrupted.",
+    "con": "Mandatory energy efficiency policies distort competition, increase consumer costs, and discourage private investment in clean energy infrastructure."
+  }
+]

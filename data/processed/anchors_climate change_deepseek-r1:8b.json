@@ -1,0 +1,52 @@
+[
+    {
+        "topic": "Whether climate policies should prioritize economic affordability or environmental goals",
+        "pro": "Policies should focus on affordable energy solutions like fossil fuels and nuclear power to protect consumers and businesses.",
+        "con": "Climate action must prioritize decarbonization and renewable energy regardless of short-term costs to address the climate crisis."
+    },
+    {
+        "topic": "Whether government subsidies should favour renewable energy or fossil fuels",
+        "pro": "Subsidies should support renewables to accelerate the transition to clean energy and meet climate targets.",
+        "con": "Subsidies should fund fossil fuels for energy security and cost-effectiveness, rather than renewables."
+    },
+    {
+        "topic": "Whether government intervention or market forces should drive climate action",
+        "pro": "Government must mandate decarbonization through policies like carbon pricing and direct investment, overriding market failures.",
+        "con": "Climate solutions should emerge from market competition and private investment without government mandates."
+    },
+    {
+        "topic": "Whether climate policies should address fuel poverty or focus on decarbonization",
+        "pro": "Policies must directly tackle fuel poverty through insulation and energy efficiency measures alongside decarbonization.",
+        "con": "Prioritizing decarbonization, even if it increases fuel costs, is necessary to address the root causes of climate change."
+    },
+    {
+        "topic": "Whether national or local control should determine energy and climate policy",
+        "pro": "Energy decisions should be devolved to nations like Wales for better alignment with local needs and priorities.",
+        "con": "Climate and energy policy must be managed centrally to ensure consistency and effectiveness across the UK."
+    },
+    {
+        "topic": "Whether climate policies should be driven by scientific consensus or economic feasibility",
+        "pro": "Policy must be based on scientific evidence for climate targets, even if economically challenging in the short term.",
+        "con": "Climate policies should be economically viable and practical, reflecting real-world constraints and costs."
+    },
+    {
+        "topic": "Whether government should invest in low-carbon technology or rely on private sector innovation",
+        "pro": "Government must invest in and guarantee support for low-carbon technologies to overcome market barriers.",
+        "con": "Innovation and investment in green tech should be driven by the private sector through competition and profit motives."
+    },
+    {
+        "topic": "Whether climate policies should consider equity or focus solely on emissions reduction",
+        "pro": "Climate policies must avoid disproportionately burdening low-income households and consider regressive impacts.",
+        "con": "Emissions reduction targets must be pursued regardless of distributional impacts, focusing solely on environmental goals."
+    },
+    {
+        "topic": "Whether climate change mitigation should be led by the UK domestically or through international cooperation",
+        "pro": "The UK must take global leadership in climate action to demonstrate commitment and drive international standards.",
+        "con": "Climate policies should focus on national energy security and economic interests, rather than international leadership."
+    },
+    {
+        "topic": "Whether the costs of climate action should be borne by government, industry, or consumers",
+        "pro": "Government should subsidize climate action to ensure affordability for citizens and businesses.",
+        "con": "Industries and consumers should bear the costs of decarbonization through carbon pricing and investment."
+    }
+]
