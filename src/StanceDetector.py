@@ -503,7 +503,7 @@ class StanceDetector:
             return dot_product / (normA * normB)
     
 
-    def compute_embeddings(self, topic, anchors, model_name="Qwen/Qwen3-Embedding-0.6B"):
+    def compute_embeddings(self, topic, anchors, model_name="Qwen/Qwen3-Embedding-0.6B", debug_mode=False):
         """
         Compute embeddings for speaker summaries and a single anchor pair.
 
@@ -511,7 +511,7 @@ class StanceDetector:
             topic: Topic key.
             anchors: Dict containing pro and con strings.
             model_name: SentenceTransformer model name.
-
+            debug_mode: If True, print additional debugging information.
         Returns:
             Tuple (speaker_embeddings, anchor_embeddings).
         """
@@ -527,7 +527,8 @@ class StanceDetector:
         all_texts = summaries + anchor_texts
 
         # DEBUG
-        print(all_texts)
+        if debug_mode:
+            print(all_texts)
 
         # Load embedding model
         model = SentenceTransformer(model_name)
@@ -912,7 +913,7 @@ class StanceDetector:
         plt.subplots_adjust(bottom=0.30)
         plt.show()
 
-    def generate_gold_standard(self, parties, anchors, years, model="qwen3:0.6b"): #llama3.2:latest # qwen3:0.6b
+    def generate_gold_standard(self, parties, anchors, years, model="qwen3:8b", debug_mode=False): #llama3.2:latest # qwen3:0.6b
         """
         Generate an LLM-based reference ordering of parties on the issue axis.
 
@@ -921,12 +922,14 @@ class StanceDetector:
             anchors: Dict with topic, pro, and con descriptions.
             years: Year interval used as historical context in the prompt.
             model: Ollama model name.
+            debug_mode: If True, print debug information.
 
         Returns:
             List of party names ordered from most CON-aligned to most PRO-aligned.
         """
 
-        # shuffle parties to avoid any bias from the input order
+        # shuffle a copy of the parties list to avoid any bias from the original order
+        parties = parties.copy()
         random.shuffle(parties)
 
         parties_json = json.dumps(parties)
@@ -973,7 +976,9 @@ class StanceDetector:
             raise ValueError(f"Invalid JSON array format:\n{stripped_array}")
         
         # DEBUG
-        print("Raw LLM response:", content)
+        if debug_mode:  
+            print("Parties to rank:", parties)
+            print("Raw LLM response:", content)
         
         ranked_parties = json.loads(stripped_array)
 
