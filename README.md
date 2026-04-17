@@ -171,10 +171,3 @@ notebooks/
 
 [2] Kato, K., & Cochrane, C. (2025). KOKKAI DOC: An LLM-driven framework for scaling parliamentary representatives. arXiv:2505.07118
 
-## License
-
-[Specify your license here]
-
-## Contact
-
-[Your contact information]
