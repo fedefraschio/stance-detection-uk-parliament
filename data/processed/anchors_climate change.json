@@ -1,0 +1,42 @@
+[
+    {
+        "topic": "The prioritization of energy security and industrial competitiveness versus ambitious decarbonization targets.",
+        "pro": "Continued reliance on fossil fuel production and investment to ensure energy security and maintain Britain\u2019s economic competitiveness.",
+        "con": "Prioritizing immediate action to mitigate climate change, potentially increasing energy bills and harming vulnerable households."
+    },
+    {
+        "topic": "The role of government intervention in the energy market.",
+        "pro": "Stronger government intervention to protect consumers, ensure investment in energy efficiency, and bolster renewable energy.",
+        "con": "Maintaining market-led solutions, opposing interventions like price freezes and new regulatory bodies."
+    },
+    {
+        "topic": "The development and deployment of renewable energy technologies.",
+        "pro": "Increased investment in green industries, particularly wind energy, and prioritizing local community involvement in planning decisions.",
+        "con": "Opposition to large-scale renewable projects, citing concerns about their impact on local economies, energy costs, and lack of standardization."
+    },
+    {
+        "topic": "The balance between energy affordability and climate action.",
+        "pro": "Prioritizing short-term energy market profits over investment in renewable energy, leading to reduced support for wind farms and a smaller commitment to combating climate change.",
+        "con": "Opposing policies that he views as punitive taxes on UK industries, particularly regarding climate change mitigation."
+    },
+    {
+        "topic": "The use of subsidies for renewable energy.",
+        "pro": "Supporting renewable energy development while advocating for local community involvement in planning decisions and expressing skepticism towards prioritizing shale gas exploration.",
+        "con": "Opposition to government investment in renewable energy, arguing it harms economic competitiveness and is reliant on subsidies."
+    },
+    {
+        "topic": "The impact of climate policies on vulnerable households.",
+        "pro": "Prioritizing affordable energy solutions for low-income households, expressing concern about the impact of climate policies on vulnerable customers and the complexities of accessing existing energy assistance schemes.",
+        "con": "Believing that rising energy bills are not primarily caused by market failures or Labour policies, and opposing interventions like price freezes and new regulatory bodies."
+    },
+    {
+        "topic": "The role of fossil fuels in the energy mix.",
+        "pro": "Maintaining conventional energy sources and opposing investments in renewables due to concerns about their reliability and potential cost to taxpayers.",
+        "con": "Opposing policies that he views as punitive taxes on UK industries, particularly regarding climate change mitigation."
+    },
+    {
+        "topic": "The prioritization of shale gas extraction.",
+        "pro": "The development of shale gas for energy security, emphasizing stringent safety regulations and criticizing those who oppose it.",
+        "con": "Opposition to shale gas extraction due to a lack of evidence regarding its effectiveness and potential environmental harm."
+    }
+]
