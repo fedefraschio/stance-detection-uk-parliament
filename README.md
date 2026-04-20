@@ -74,21 +74,6 @@ To analyze a new topic:
 5. Compute embeddings and project onto controversy axes
 6. Validate using LLM-as-a-judge approach
 
-## Data Structure
-
-```
-data/
-├── external/
-│   └── records.json          # Topic definitions (keywords, policy areas)
-├── raw/
-│   └── ParlEE_UK_plenary_speeches.csv  # Raw dataset
-└── processed/
-    ├── summarizations_Gaza.csv              # Politician stance summaries
-    ├── anchors_Gaza.json                    # Controversy axes definitions
-    ├── summarizations_climate change.csv
-    └── anchors_climate change.json
-```
-
 ## Methodology
 
 ### Opinion Detection
