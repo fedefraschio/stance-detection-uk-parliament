@@ -1,0 +1,26 @@
+{
+    "0": {
+        "spearman_rho": -0.1429,
+        "spearman_p": 0.7872,
+        "kendall_tau": -0.2,
+        "kendall_p": 0.7194,
+        "lcs_ratio": 0.3333,
+        "n_parties": 6
+    },
+    "1": {
+        "spearman_rho": 0.1429,
+        "spearman_p": 0.7872,
+        "kendall_tau": 0.3333,
+        "kendall_p": 0.4694,
+        "lcs_ratio": 0.8333,
+        "n_parties": 6
+    },
+    "3": {
+        "spearman_rho": -0.4857,
+        "spearman_p": 0.3287,
+        "kendall_tau": -0.3333,
+        "kendall_p": 0.4694,
+        "lcs_ratio": 0.5,
+        "n_parties": 6
+    }
+}

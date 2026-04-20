@@ -1,0 +1,8 @@
+{
+    "spearman_rho": 0.6,
+    "spearman_p": 0.2848,
+    "kendall_tau": 0.4,
+    "kendall_p": 0.4833,
+    "lcs_ratio": 0.6,
+    "n_parties": 5
+}
