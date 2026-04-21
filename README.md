@@ -130,8 +130,7 @@ LLM-as-a-judge generates gold standard party orderings based on general politica
 ```
 src/
 ├── StanceDetector.py    # Main pipeline class
-├── utils.py             # Helper functions
-└── json_generation.py   # Data processing utilities
+└── utils.py             # Helper functions
 
 notebooks/
 ├── stance_detection.ipynb    # Main analysis notebook
