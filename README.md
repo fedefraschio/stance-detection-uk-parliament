@@ -2,6 +2,13 @@
 
 An NLP pipeline for automatic stance detection and controversy analysis applied to UK parliamentary debates. This project uses large language models to identify political positions along contested issues and validate them through embedding-based projections.
 
+## Authors
+
+| Name | Email |
+|------|-------|
+| Federico Faccioli | federico.faccioli2@studio.unibo.it |
+| Andrea Cristiano | andrea.cristiano@studio.unibo.it |
+
 ## Overview
 
 This work presents a complete methodology for:
