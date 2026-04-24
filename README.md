@@ -99,16 +99,16 @@ LLM-as-a-judge generates gold standard party orderings based on general politica
 ### Gaza (2011–2014)
 
 **General Issue**: Primary obstacle to peace in Israeli-Palestinian conflict
-- 7 sub-topics analyzed
-- Spearman's ρ range: 0.5–1.0 (most strong correlations)
-- Average agreement: 85%+ with gold standard on general issue
+- 4 sub-topics analyzed
+- Spearman's ρ range: 0.5–1.0
+- Comment: strong agreement on the broad issue, with weaker performance on narrower sub-topics
 
 ### Climate Change (2014)
 
 **General Issue**: Role of government in UK's fossil fuel transition
-- 5 sub-topics analyzed
+- 3 sub-topics analyzed
 - Spearman's ρ range: 0.4–0.9
-- Strong performance on broad framing, degraded on narrow sub-issues
+- Comment: good performance on broad framing, with noticeable degradation on narrower sub-issues
 
 ## Limitations & Future Work
 
@@ -128,15 +128,19 @@ LLM-as-a-judge generates gold standard party orderings based on general politica
 ## Project Structure
 
 ```
+config.py
+requirements.txt
 src/
 ├── StanceDetector.py    # Main pipeline class
 └── utils.py             # Helper functions
 
 notebooks/
 ├── stance_detection.ipynb    # Main analysis notebook
-├── 01_summarization.ipynb    # Stance summarization exploration
-├── 02_preprocessing.ipynb    # Data preprocessing
-└── 03_classification.ipynb   # Opinion detection model training
+└── classification.ipynb      # Classification notebook
+
+data/
+├── external/
+└── processed/
 ```
 
 ## Key Dependencies
